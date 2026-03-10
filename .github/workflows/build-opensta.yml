@@ -6,7 +6,7 @@ on:
 
 jobs:
   build-appimage:
-    runs-on: ubuntu-20.04 # This guarantees an x86_64 Linux environment
+    runs-on: ubuntu-22.04 # This guarantees an x86_64 Linux environment
 
     steps:
       - name: Install Build Dependencies
