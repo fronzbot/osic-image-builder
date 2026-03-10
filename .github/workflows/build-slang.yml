@@ -1,0 +1,71 @@
+name: Build slang AppImage
+
+# This allows you to trigger the build manually from the GitHub Actions tab
+on: 
+  workflow_dispatch:
+
+jobs:
+  build-appimage:
+    runs-on: ubuntu-latest # This guarantees an x86_64 Linux environment
+
+    steps:
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake gcc-11 g++-11 wget file
+
+      - name: Clone slang Source
+        run: |
+          git clone https://github.com/MikePopoloski/slang.git
+          
+      - name: Build slang
+        run: |
+          cd slang
+          cmake -B build
+          cmake --build build -j
+          ls -lah
+          find . -name slang
+
+      - name: Prepare AppDir Structure
+        run: |
+          mkdir -p AppDir/usr/bin
+          # Copy the compiled binary into the AppDir
+          cp slang/build/slang AppDir/usr/bin/
+
+          # Create the required .desktop file
+          cat > AppDir/slang.desktop <<EOF
+          [Desktop Entry]
+          Name=slang
+          Exec=sta
+          Icon=utilities-terminal
+          Type=Application
+          Categories=Development;
+          EOF
+
+          # Create a dummy icon file (required by linuxdeploy)
+          touch AppDir/utilities-terminal.svg
+
+      - name: Download and Run linuxdeploy
+        run: |
+          # Install FUSE so AppImages can run directly on the GitHub runner
+          sudo apt-get install -y libfuse2
+
+          # Download linuxdeploy AND the missing AppImage plugin
+          wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          wget https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/continuous/linuxdeploy-plugin-appimage-x86_64.AppImage
+          
+          # Make both executable
+          chmod +x linuxdeploy*.AppImage
+
+          # This environment variable forces the exact output name we want
+          export OUTPUT=slang-x86_64.AppImage
+
+          # Run linuxdeploy to bundle libraries and generate the final AppImage
+          ./linuxdeploy-x86_64.AppImage --appdir AppDir --output appimage
+
+      - name: Upload AppImage Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: slang-AppImage
+          path: slang-x86_64.AppImage
+          retention-days: 7 # Keeps the file available for download for a week
