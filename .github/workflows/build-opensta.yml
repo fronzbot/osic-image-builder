@@ -1,0 +1,80 @@
+name: Build OpenSTA AppImage
+
+# This allows you to trigger the build manually from the GitHub Actions tab
+on: 
+  workflow_dispatch:
+
+jobs:
+  build-appimage:
+    runs-on: ubuntu-latest # This guarantees an x86_64 Linux environment
+
+    steps:
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ swig tcl-dev zlib1g-dev bison flex wget file tcl-tclreadline libreadline-dev libeigen3-dev
+
+      - name: Clone OpenSTA Source
+        run: |
+          git clone https://github.com/parallaxsw/OpenSTA.git
+          
+      - name: Clone Cudd Releases
+        run: |
+          git clone https://github.com/davidkebo/cudd.git
+          cp cudd/cudd_versions/cudd-3.0.0.tar.gz ./
+          tar -xzvf cudd-3.0.0.tar.gz
+
+      - name: Build Cudd
+        run: |
+          cd cudd-3.0.0
+          ./configure
+          make
+
+      - name: Build OpenSTA
+        run: |
+          cd OpenSTA
+          mkdir build && cd build
+          cmake .. -DCUDD_LIB=../../cudd-3.0.0/cudd/.libs/libcudd.a
+          make
+
+      - name: Prepare AppDir Structure
+        run: |
+          mkdir -p AppDir/usr/bin
+          # Copy the compiled binary into the AppDir
+          cp OpenSTA/build/sta AppDir/usr/bin/
+
+          # Create the required .desktop file
+          cat > AppDir/opensta.desktop <<EOF
+          [Desktop Entry]
+          Name=OpenSTA
+          Exec=sta
+          Icon=utilities-terminal
+          Type=Application
+          Categories=Development;
+          EOF
+
+          # Create a dummy icon file (required by linuxdeploy)
+          touch AppDir/utilities-terminal.svg
+
+      - name: Download and Run linuxdeploy
+        run: |
+          # Download linuxdeploy
+          wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage
+
+          # GitHub Actions runners sometimes lack FUSE (needed to run AppImages directly).
+          # Extracting it first ensures it runs flawlessly in the cloud.
+          ./linuxdeploy-x86_64.AppImage --appimage-extract
+
+          # Run linuxdeploy to bundle libraries and generate the final AppImage
+          ./squashfs-root/AppRun --appdir AppDir --output appimage
+
+          # Rename it to something clean
+          mv OpenSTA*.AppImage OpenSTA-x86_64.AppImage
+
+      - name: Upload AppImage Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenSTA-AppImage
+          path: OpenSTA-x86_64.AppImage
+          retention-days: 7 # Keeps the file available for download for a week
