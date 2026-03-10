@@ -13,7 +13,15 @@ jobs:
       - name: Install Build Dependencies
         run: |
           dnf update -y
-          dnf install -y gcc-toolset-11 gcc-toolset-11-gcc-c++ cmake make swig tcl-devel zlib-devel bison flex flex-devel wget file git tcl-tclreadline readline-devel eigen3-devel
+          dnf install -y epel-release dnf-plugins-core
+          dnf config-manager --set-enabled powertools
+          dnf clean all
+          dnf makecache
+          dnf install -y --enablerepo=powertools --enablerepo=epel \
+            gcc-toolset-11 gcc-toolset-11-gcc-c++ \
+            cmake make swig tcl-devel zlib-devel bison \
+            flex flex-devel tcl-tclreadline tcl-tclreadline-devel \
+            readline-devel eigen3-devel wget file git
 
       - name: Clone OpenSTA Source
         run: |
