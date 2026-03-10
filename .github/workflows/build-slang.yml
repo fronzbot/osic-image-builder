@@ -19,7 +19,7 @@ jobs:
           dnf makecache
           dnf install -y --enablerepo=powertools --enablerepo=epel \
             gcc-toolset-11 gcc-toolset-11-gcc-c++ \
-            cmake make wget file git
+            cmake make wget file git python3
             
       - name: Clone slang Source
         run: |
