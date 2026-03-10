@@ -34,7 +34,7 @@ jobs:
         run: |
           cd OpenSTA
           mkdir build && cd build
-          cmake .. -DCUDD_LIB=../../cudd-3.0.0/cudd/.libs/libcudd.a
+          cmake .. -DCUDD_LIB=../../cudd-3.0.0/cudd/.libs/libcudd.a -DFLEX_INCLUDE_DIR=/usr/bin/flex
           make
 
       - name: Prepare AppDir Structure
