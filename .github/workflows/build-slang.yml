@@ -6,7 +6,7 @@ on:
 
 jobs:
   build-appimage:
-    runs-on: ubuntu-latest # This guarantees an x86_64 Linux environment
+    runs-on: ubuntu-22.04 # This guarantees an x86_64 Linux environment
 
     steps:
       - name: Install Build Dependencies
@@ -22,7 +22,7 @@ jobs:
         run: |
           cd slang
           cmake -B build
-          cmake --build build -j
+          cmake --build build -j2
           ls -lah
           find . -name slang
 
