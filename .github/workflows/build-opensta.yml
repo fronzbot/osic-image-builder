@@ -6,13 +6,14 @@ on:
 
 jobs:
   build-appimage:
-    runs-on: ubuntu-22.04 # This guarantees an x86_64 Linux environment
+    runs-on: ubuntu-latest # This guarantees an x86_64 Linux environment
+    container: almalinux:8
 
     steps:
       - name: Install Build Dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake gcc-11 g++-11 swig tcl-dev zlib1g-dev bison flex libfl-dev wget file tcl-tclreadline libreadline-dev libeigen3-dev
+          dnf update -y
+          dnf install -y gcc-toolset-11 gcc-toolset-11-gcc-c++ cmake make swig tcl-devel zlib-devel bison flex flex-devel wget file git tcl-tclreadline readline-devel eigen3-devel
 
       - name: Clone OpenSTA Source
         run: |
@@ -26,6 +27,7 @@ jobs:
 
       - name: Build Cudd
         run: |
+          source /opt/rh/gcc-toolset-11/enable
           cd cudd-3.0.0
           ./configure
           make
@@ -33,6 +35,7 @@ jobs:
       - name: Build OpenSTA
         run: |
           cd OpenSTA
+          source /opt/rh/gcc-toolset-11/enable
           mkdir build && cd build
           cmake .. -DCUDD_LIB=../../cudd-3.0.0/cudd/.libs/libcudd.a
           make
