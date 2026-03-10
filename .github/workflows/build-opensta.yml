@@ -6,7 +6,7 @@ on:
 
 jobs:
   build-appimage:
-    runs-on: ubuntu-latest # This guarantees an x86_64 Linux environment
+    runs-on: ubuntu-20.04 # This guarantees an x86_64 Linux environment
 
     steps:
       - name: Install Build Dependencies
@@ -58,19 +58,21 @@ jobs:
 
       - name: Download and Run linuxdeploy
         run: |
-          # Download linuxdeploy
-          wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
-          chmod +x linuxdeploy-x86_64.AppImage
+          # Install FUSE so AppImages can run directly on the GitHub runner
+          sudo apt-get install -y libfuse2
 
-          # GitHub Actions runners sometimes lack FUSE (needed to run AppImages directly).
-          # Extracting it first ensures it runs flawlessly in the cloud.
-          ./linuxdeploy-x86_64.AppImage --appimage-extract
+          # Download linuxdeploy AND the missing AppImage plugin
+          wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          wget https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/continuous/linuxdeploy-plugin-appimage-x86_64.AppImage
+          
+          # Make both executable
+          chmod +x linuxdeploy*.AppImage
+
+          # This environment variable forces the exact output name we want
+          export OUTPUT=OpenSTA-x86_64.AppImage
 
           # Run linuxdeploy to bundle libraries and generate the final AppImage
-          ./squashfs-root/AppRun --appdir AppDir --output appimage
-
-          # Rename it to something clean
-          mv OpenSTA*.AppImage OpenSTA-x86_64.AppImage
+          ./linuxdeploy-x86_64.AppImage --appdir AppDir --output appimage
 
       - name: Upload AppImage Artifact
         uses: actions/upload-artifact@v4
