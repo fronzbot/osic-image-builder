@@ -3,23 +3,31 @@ name: Build slang AppImage
 # This allows you to trigger the build manually from the GitHub Actions tab
 on: 
   workflow_dispatch:
-
+  
 jobs:
   build-appimage:
-    runs-on: ubuntu-22.04 # This guarantees an x86_64 Linux environment
+    runs-on: ubuntu-latest # This guarantees an x86_64 Linux environment
+    container: almalinux:8
 
     steps:
       - name: Install Build Dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake gcc-11 g++-11 wget file
-
+          dnf update -y
+          dnf install -y epel-release dnf-plugins-core
+          dnf config-manager --set-enabled powertools
+          dnf clean all
+          dnf makecache
+          dnf install -y --enablerepo=powertools --enablerepo=epel \
+            gcc-toolset-11 gcc-toolset-11-gcc-c++ \
+            cmake make wget file git
+            
       - name: Clone slang Source
         run: |
           git clone https://github.com/MikePopoloski/slang.git
           
       - name: Build slang
         run: |
+          source /opt/rh/gcc-toolset-11/enable
           cd slang
           cmake -B build
           cmake --build build -j2
@@ -29,8 +37,6 @@ jobs:
 
       - name: Prepare AppDir Structure
         run: |
-          pwd
-          ls -lah
           mkdir -p AppDir/usr/bin
           # Copy the compiled binary into the AppDir
           cp slang/build/bin/slang AppDir/usr/bin/
@@ -48,27 +54,33 @@ jobs:
           # Create a dummy icon file (required by linuxdeploy)
           touch AppDir/utilities-terminal.svg
 
-      - name: Download and Run linuxdeploy
+      - name: Bundle Libraries and Package AppImage
         run: |
-          # Install FUSE so AppImages can run directly on the GitHub runner
-          sudo apt-get install -y libfuse2
-
-          # Download linuxdeploy AND the missing AppImage plugin
+          # 1. Download tools
           wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
-          wget https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/continuous/linuxdeploy-plugin-appimage-x86_64.AppImage
+          wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x linuxdeploy*.AppImage appimagetool*.AppImage
+
+          # 2. Extract tools to bypass Docker FUSE block
+          ./linuxdeploy-x86_64.AppImage --appimage-extract
+          mv squashfs-root linuxdeploy-tool
           
-          # Make both executable
-          chmod +x linuxdeploy*.AppImage
+          ./appimagetool-x86_64.AppImage --appimage-extract
+          mv squashfs-root appimagetool-tool
 
-          # This environment variable forces the exact output name we want
-          export OUTPUT=slang-x86_64.AppImage
-
-          # Run linuxdeploy to bundle libraries and generate the final AppImage
-          ./linuxdeploy-x86_64.AppImage --appdir AppDir --output appimage
+          # 3. FORCE linuxdeploy to create the AppRun wrapper and bundle libraries!
+          ./linuxdeploy-tool/AppRun --appdir AppDir \
+            -e AppDir/usr/bin/slang \
+            -d AppDir/slang.desktop \
+            -i AppDir/utilities-terminal.svg
+          
+          # 4. Package the final AppImage
+          export ARCH=x86_64
+          ./appimagetool-tool/AppRun AppDir slang-RHEL8-x86_64.AppImage
 
       - name: Upload AppImage Artifact
         uses: actions/upload-artifact@v4
         with:
           name: slang-AppImage
-          path: slang-x86_64.AppImage
+          path: slang-RHEL8-x86_64.AppImage
           retention-days: 7 # Keeps the file available for download for a week
