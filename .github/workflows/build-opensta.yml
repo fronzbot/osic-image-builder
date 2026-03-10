@@ -95,24 +95,31 @@ jobs:
           # Create a dummy icon file (required by linuxdeploy)
           touch AppDir/utilities-terminal.svg
 
-      - name: Download and Run linuxdeploy
+      - name: Bundle Libraries and Package AppImage
         run: |
-          # Download linuxdeploy AND the missing AppImage plugin
+          # 1. Download linuxdeploy AND appimagetool
           wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
-          wget https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/continuous/linuxdeploy-plugin-appimage-x86_64.AppImage
+          wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
           
-          # Make both executable
-          chmod +x linuxdeploy*.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage appimagetool-x86_64.AppImage
 
-          # This environment variable forces the exact output name we want
-          export OUTPUT=OpenSTA-x86_64.AppImage
+          # 2. Extract both tools manually to permanently bypass Docker's FUSE block
+          ./linuxdeploy-x86_64.AppImage --appimage-extract
+          mv squashfs-root linuxdeploy-tool
+          
+          ./appimagetool-x86_64.AppImage --appimage-extract
+          mv squashfs-root appimagetool-tool
 
-          # Run linuxdeploy to bundle libraries and generate the final AppImage
-          ./linuxdeploy-x86_64.AppImage --appdir AppDir --output appimage
+          # 3. Run linuxdeploy to pull in all your RHEL 8 shared libraries
+          ./linuxdeploy-tool/AppRun --appdir AppDir
+          
+          # 4. Package the AppDir into the final AppImage
+          export ARCH=x86_64
+          ./appimagetool-tool/AppRun AppDir OpenSTA-RHEL8-x86_64.AppImage
 
       - name: Upload AppImage Artifact
         uses: actions/upload-artifact@v4
         with:
           name: OpenSTA-AppImage
-          path: OpenSTA-x86_64.AppImage
+          path: OpenSTA-RHEL8-x86_64.AppImage
           retention-days: 7 # Keeps the file available for download for a week
