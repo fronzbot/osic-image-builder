@@ -23,20 +23,20 @@ jobs:
           cd slang
           cmake -B build
           cmake --build build -j2
-          ls -lah
+          ls -lah ./build
           find . -name slang
 
       - name: Prepare AppDir Structure
         run: |
           mkdir -p AppDir/usr/bin
           # Copy the compiled binary into the AppDir
-          cp slang/build/slang AppDir/usr/bin/
+          cp ./build/bin/slang AppDir/usr/bin/
 
           # Create the required .desktop file
           cat > AppDir/slang.desktop <<EOF
           [Desktop Entry]
           Name=slang
-          Exec=sta
+          Exec=slang
           Icon=utilities-terminal
           Type=Application
           Categories=Development;
