@@ -35,12 +35,15 @@ jobs:
 
       - name: Install Modern Eigen3 from Source
         run: |
+          # Activate GCC 11 for THIS specific shell session
+          source /opt/rh/gcc-toolset-11/enable
+          
           # Clone the stable 3.4.0 release
           git clone --branch 3.4.0 https://gitlab.com/libeigen/eigen.git
           cd eigen
           mkdir build && cd build
           
-          # "Building" a header-only library just generates the modern CMake targets and copies the files
+          # Now CMake will easily find the CXX compiler
           cmake ..
           make install
 
