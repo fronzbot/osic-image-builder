@@ -18,7 +18,7 @@ jobs:
           dnf clean all
           dnf makecache
           dnf install -y --enablerepo=powertools --enablerepo=epel \
-            gcc-toolset-11 gcc-toolset-11-gcc-c++ \
+            gcc-toolset-13 gcc-toolset-13-gcc-c++ \
             cmake make wget file git python3
             
       - name: Clone slang Source
@@ -27,7 +27,7 @@ jobs:
           
       - name: Build slang
         run: |
-          source /opt/rh/gcc-toolset-11/enable
+          source /opt/rh/gcc-toolset-13/enable
           cd slang
           cmake -B build
           cmake --build build -j2
