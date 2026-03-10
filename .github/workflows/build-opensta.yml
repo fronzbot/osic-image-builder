@@ -21,7 +21,7 @@ jobs:
             gcc-toolset-11 gcc-toolset-11-gcc-c++ \
             cmake make swig tcl-devel zlib-devel bison \
             flex flex-devel tcl-tclreadline tcl-tclreadline-devel \
-            readline-devel eigen3-devel wget file git
+            readline-devel wget file git
 
       - name: Clone OpenSTA Source
         run: |
@@ -32,6 +32,17 @@ jobs:
           git clone https://github.com/davidkebo/cudd.git
           cp cudd/cudd_versions/cudd-3.0.0.tar.gz ./
           tar -xzvf cudd-3.0.0.tar.gz
+
+      - name: Install Modern Eigen3 from Source
+        run: |
+          # Clone the stable 3.4.0 release
+          git clone --branch 3.4.0 https://gitlab.com/libeigen/eigen.git
+          cd eigen
+          mkdir build && cd build
+          
+          # "Building" a header-only library just generates the modern CMake targets and copies the files
+          cmake ..
+          make install
 
       - name: Build Cudd
         run: |
