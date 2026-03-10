@@ -97,23 +97,25 @@ jobs:
 
       - name: Bundle Libraries and Package AppImage
         run: |
-          # 1. Download linuxdeploy AND appimagetool
+          # 1. Download tools
           wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
           wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
-          
-          chmod +x linuxdeploy-x86_64.AppImage appimagetool-x86_64.AppImage
+          chmod +x linuxdeploy*.AppImage appimagetool*.AppImage
 
-          # 2. Extract both tools manually to permanently bypass Docker's FUSE block
+          # 2. Extract tools to bypass Docker FUSE block
           ./linuxdeploy-x86_64.AppImage --appimage-extract
           mv squashfs-root linuxdeploy-tool
           
           ./appimagetool-x86_64.AppImage --appimage-extract
           mv squashfs-root appimagetool-tool
 
-          # 3. Run linuxdeploy to pull in all your RHEL 8 shared libraries
-          ./linuxdeploy-tool/AppRun --appdir AppDir
+          # 3. FORCE linuxdeploy to create the AppRun wrapper and bundle libraries!
+          ./linuxdeploy-tool/AppRun --appdir AppDir \
+            -e AppDir/usr/bin/sta \
+            -d AppDir/opensta.desktop \
+            -i AppDir/utilities-terminal.svg
           
-          # 4. Package the AppDir into the final AppImage
+          # 4. Package the final AppImage
           export ARCH=x86_64
           ./appimagetool-tool/AppRun AppDir OpenSTA-RHEL8-x86_64.AppImage
 
