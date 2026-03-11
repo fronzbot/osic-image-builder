@@ -1,0 +1,90 @@
+name: Build Verilator AppImage
+
+# This allows you to trigger the build manually from the GitHub Actions tab
+on: 
+  workflow_dispatch:
+
+jobs:
+  build-appimage:
+    runs-on: ubuntu-latest
+    container:
+      image: almalinux:8
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install RHEL8 Build Prerequisites
+        run: |
+          # Enable EPEL and PowerTools for additional dependencies
+          dnf install -y epel-release dnf-plugins-core wget
+          dnf config-manager --set-enabled powertools
+          
+          # Install dependencies mapped from the Ubuntu apt-get list
+          dnf install -y \
+            git help2man perl perl-core python3 make autoconf \
+            gcc-c++ flex flex-devel bison ccache gperftools-devel \
+            numactl zlib-devel file patch
+
+      - name: Build Verilator
+        run: |
+          git clone https://github.com/verilator/verilator
+          cd verilator
+          git checkout stable
+          autoconf
+          
+          # Configure with /usr prefix so it maps correctly inside the AppImage
+          ./configure --prefix=/usr
+          make -j $(nproc)
+          
+          # Install to a local AppDir folder instead of the system
+          make install DESTDIR=$GITHUB_WORKSPACE/AppDir
+
+      - name: Prepare AppDir & Desktop Files
+        run: |
+          cd $GITHUB_WORKSPACE
+          
+          # AppImages require a .desktop file to define the entry point
+          mkdir -p AppDir/usr/share/applications
+          cat <<EOF > AppDir/usr/share/applications/verilator.desktop
+          [Desktop Entry]
+          Name=Verilator
+          Exec=verilator
+          Icon=verilator
+          Type=Application
+          Categories=Development;
+          Terminal=true
+          EOF
+          
+          # AppImages also require an icon file (we'll create an empty placeholder)
+          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps/
+          touch AppDir/usr/share/icons/hicolor/256x256/apps/verilator.png
+
+      - name: Create AppImage using linuxdeploy
+        run: |
+          cd $GITHUB_WORKSPACE
+          
+          # Download linuxdeploy
+          wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage
+          
+          # Extract linuxdeploy (FUSE is usually unavailable in Docker containers)
+          ./linuxdeploy-x86_64.AppImage --appimage-extract
+          
+          # Bundle shared libraries and generate the final AppImage
+          export OUTPUT="Verilator-RHEL8-x86_64.AppImage"
+          ./squashfs-root/AppRun \
+            --appdir AppDir \
+            -d AppDir/usr/share/applications/verilator.desktop \
+            -i AppDir/usr/share/icons/hicolor/256x256/apps/verilator.png \
+            --output appimage
+
+      - name: Upload AppImage Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Verilator-AppImage
+          path: Verilator-RHEL8-x86_64.AppImage
+
+      - name: Verify Installation
+        run: |
+          verilator --version
