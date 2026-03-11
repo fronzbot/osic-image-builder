@@ -79,10 +79,12 @@ jobs:
       - name: Prepare AppDir Structure
         run: |
           mkdir -p AppDir/usr/bin
-          # Copy the compiled binary into the AppDir
           cp OpenSTA/build/sta AppDir/usr/bin/
 
-          # Create the required .desktop file
+          # CRITICAL FIX: Copy the Tcl initialization scripts into the AppDir
+          mkdir -p AppDir/usr/share
+          cp -r /usr/share/tcl8.6 AppDir/usr/share/
+
           cat > AppDir/opensta.desktop <<EOF
           [Desktop Entry]
           Name=OpenSTA
@@ -92,30 +94,40 @@ jobs:
           Categories=Development;
           EOF
 
-          # Create a dummy icon file (required by linuxdeploy)
           touch AppDir/utilities-terminal.svg
 
       - name: Bundle Libraries and Package AppImage
         run: |
-          # 1. Download tools
           wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
           wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x linuxdeploy*.AppImage appimagetool*.AppImage
 
-          # 2. Extract tools to bypass Docker FUSE block
           ./linuxdeploy-x86_64.AppImage --appimage-extract
           mv squashfs-root linuxdeploy-tool
           
           ./appimagetool-x86_64.AppImage --appimage-extract
           mv squashfs-root appimagetool-tool
 
-          # 3. FORCE linuxdeploy to create the AppRun wrapper and bundle libraries!
+          # Run linuxdeploy to bundle the .so libraries
           ./linuxdeploy-tool/AppRun --appdir AppDir \
             -e AppDir/usr/bin/sta \
             -d AppDir/opensta.desktop \
             -i AppDir/utilities-terminal.svg
           
-          # 4. Package the final AppImage
+          # CRITICAL FIX: Delete the default symlink and create a custom wrapper script
+          rm -f AppDir/AppRun
+          cat > AppDir/AppRun << 'EOF'
+          #!/bin/bash
+          # Get the directory where the AppImage is currently mounted
+          HERE="$(dirname "$(readlink -f "${0}")")"
+          # Tell Tcl to look inside the AppImage for init.tcl
+          export TCL_LIBRARY="${HERE}/usr/share/tcl8.6"
+          # Execute the actual OpenSTA binary and pass along any command line arguments
+          exec "${HERE}/usr/bin/sta" "$@"
+          EOF
+          chmod +x AppDir/AppRun
+          
+          # Package the final AppImage
           export ARCH=x86_64
           ./appimagetool-tool/AppRun AppDir OpenSTA-RHEL8-x86_64.AppImage
 
