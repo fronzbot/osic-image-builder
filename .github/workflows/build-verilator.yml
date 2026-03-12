@@ -58,8 +58,8 @@ jobs:
           
           # AppImages also require an icon file (we'll create an empty placeholder)
           mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps/
-          touch AppDir/usr/share/icons/hicolor/256x256/apps/verilator.png
-
+          echo "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" | base64 -d > AppDir/usr/share/icons/hicolor/256x256/apps/verilator.png
+      
       - name: Create AppImage using linuxdeploy
         run: |
           cd $GITHUB_WORKSPACE
