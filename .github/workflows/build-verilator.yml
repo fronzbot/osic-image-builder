@@ -44,7 +44,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE
           
-          # AppImages require a .desktop file to define the entry point
+          # Create the .desktop file
           mkdir -p AppDir/usr/share/applications
           cat <<EOF > AppDir/usr/share/applications/verilator.desktop
           [Desktop Entry]
@@ -56,27 +56,30 @@ jobs:
           Terminal=true
           EOF
           
-          # AppImages also require an icon file (we'll create an empty placeholder)
-          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps/
-          echo "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" | base64 -d > AppDir/usr/share/icons/hicolor/256x256/apps/verilator.png
+          # Create a valid scalable SVG icon (plain text!)
+          mkdir -p AppDir/usr/share/icons/hicolor/scalable/apps/
+          cat <<EOF > AppDir/usr/share/icons/hicolor/scalable/apps/verilator.svg
+          <svg width="256" height="256" xmlns="http://www.w3.org/2000/svg">
+            <rect width="256" height="256" fill="transparent"/>
+          </svg>
+          EOF
       
       - name: Create AppImage using linuxdeploy
         run: |
           cd $GITHUB_WORKSPACE
           
-          # Download linuxdeploy
           wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
           chmod +x linuxdeploy-x86_64.AppImage
           
-          # Extract linuxdeploy (FUSE is usually unavailable in Docker containers)
+          # Extract linuxdeploy
           ./linuxdeploy-x86_64.AppImage --appimage-extract
           
-          # Bundle shared libraries and generate the final AppImage
           export OUTPUT="Verilator-RHEL8-x86_64.AppImage"
+          # Run linuxdeploy pointing to the new SVG icon
           ./squashfs-root/AppRun \
             --appdir AppDir \
             -d AppDir/usr/share/applications/verilator.desktop \
-            -i AppDir/usr/share/icons/hicolor/256x256/apps/verilator.png \
+            -i AppDir/usr/share/icons/hicolor/scalable/apps/verilator.svg \
             --output appimage
 
       - name: Upload AppImage Artifact
