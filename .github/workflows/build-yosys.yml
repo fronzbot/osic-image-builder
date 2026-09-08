@@ -1,6 +1,11 @@
 name: Build Yosys AppImage
 on:
   workflow_dispatch:
+    inputs:
+      yosys_ref:
+        description: "Yosys git ref (tag or branch); v0.67+ has built-in read_slang"
+        required: false
+        default: "v0.68"
 
 jobs:
   build-appimage:
@@ -28,7 +33,7 @@ jobs:
           tar xf "cmake-${CMAKE_VER}-linux-x86_64.tar.gz" -C /opt
           ln -sfn "/opt/cmake-${CMAKE_VER}-linux-x86_64" /opt/cmake
           echo "/opt/cmake/bin" >> "${GITHUB_PATH}"
-          cmake --version
+          /opt/cmake/bin/cmake --version
       - name: Build Bison 3.8.2 (Alma 8 bison is 3.0.x)
         run: |
           source /opt/rh/gcc-toolset-13/enable
