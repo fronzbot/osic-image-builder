@@ -1,0 +1,112 @@
+name: Build Yosys AppImage
+  on:
+    workflow_dispatch:
+      inputs:
+        yosys_ref:
+          description: Yosys git ref (tag or branch). Use >= v0.67 for built-in read_slang.
+          required: false
+          default: "v0.68"
+  jobs:
+    build-appimage:
+      runs-on: ubuntu-latest
+      container: almalinux:8
+      steps:
+        - name: Install Build Dependencies
+          run: |
+            dnf update -y
+            dnf install -y epel-release dnf-plugins-core
+            dnf config-manager --set-enabled powertools
+            dnf clean all
+            dnf makecache
+            dnf install -y --enablerepo=powertools --enablerepo=epel \
+              gcc-toolset-13 gcc-toolset-13-gcc-c++ \
+              make wget tar xz unzip file git patch gawk \
+              flex flex-devel m4 pkgconf-pkg-config which \
+              python3.11 python3.11-devel \
+              zlib-devel libffi-devel readline-devel \
+              tcl tcl-devel libtommath libtommath-devel
+        - name: Install CMake 3.30 (Alma 8 cmake is too old)
+          run: |
+            CMAKE_VER=3.30.5
+            wget -q "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VER}/cmake-${CMAKE_VER}-linux-x86_64.tar.gz"
+            tar xf "cmake-${CMAKE_VER}-linux-x86_64.tar.gz" -C /opt
+            ln -sfn "/opt/cmake-${CMAKE_VER}-linux-x86_64" /opt/cmake
+            echo "/opt/cmake/bin" >> "${GITHUB_PATH}"
+            cmake --version
+        - name: Build Bison 3.8.2 (Alma 8 bison is 3.0.x)
+          run: |
+            source /opt/rh/gcc-toolset-13/enable
+            wget -q https://ftpmirror.gnu.org/bison/bison-3.8.2.tar.xz
+            tar xf bison-3.8.2.tar.xz
+            cd bison-3.8.2
+            ./configure --prefix=/usr/local
+            make -j2
+            make install
+            bison --version
+        - name: Clone Yosys Source
+          run: |
+            git clone --depth 1 --branch "${{ inputs.yosys_ref }}" \
+              https://github.com/YosysHQ/yosys.git
+            cd yosys
+            git submodule update --init --recursive
+        - name: Build Yosys
+          run: |
+            source /opt/rh/gcc-toolset-13/enable
+            export PATH="/usr/local/bin:/opt/cmake/bin:$PATH"
+            cd yosys
+            cmake -B build \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_INSTALL_PREFIX=/usr \
+              -DCMAKE_C_COMPILER=gcc \
+              -DCMAKE_CXX_COMPILER=g++ \
+              -DPython3_EXECUTABLE="$(command -v python3.11)" \
+              -DYOSYS_INSTALL_LIBRARY=ON \
+              -DYOSYS_WITH_PYTHON=OFF
+            cmake --build build --config Release -j2
+            cmake --install build --prefix "${GITHUB_WORKSPACE}/AppDir/usr" --strip
+            ls -lah "${GITHUB_WORKSPACE}/AppDir/usr/bin"
+            "${GITHUB_WORKSPACE}/AppDir/usr/bin/yosys" -V
+        - name: Prepare AppDir Structure
+          run: |
+            cat > AppDir/yosys.desktop <<EOF
+            [Desktop Entry]
+            Name=yosys
+            Exec=yosys
+            Icon=utilities-terminal
+            Type=Application
+            Categories=Development;
+            EOF
+            touch AppDir/utilities-terminal.svg
+        - name: Bundle Libraries and Package AppImage
+          run: |
+            wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+            wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+            chmod +x linuxdeploy-x86_64.AppImage appimagetool-x86_64.AppImage
+            ./linuxdeploy-x86_64.AppImage --appimage-extract
+            mv squashfs-root linuxdeploy-tool
+            ./appimagetool-x86_64.AppImage --appimage-extract
+            mv squashfs-root appimagetool-tool
+            LINUXDEPLOY_ARGS=(
+              --appdir AppDir
+              -e AppDir/usr/bin/yosys
+              -d AppDir/yosys.desktop
+              -i AppDir/utilities-terminal.svg
+            )
+            if [ -x AppDir/usr/bin/yosys-abc ]; then
+              LINUXDEPLOY_ARGS+=(-e AppDir/usr/bin/yosys-abc)
+            fi
+            ./linuxdeploy-tool/AppRun "${LINUXDEPLOY_ARGS[@]}"
+            export ARCH=x86_64
+            ./appimagetool-tool/AppRun AppDir yosys-RHEL8-x86_64.AppImage
+        - name: Smoke test AppImage
+          run: |
+            export APPIMAGE_EXTRACT_AND_RUN=1
+            chmod +x yosys-RHEL8-x86_64.AppImage
+            ./yosys-RHEL8-x86_64.AppImage -V
+            ./yosys-RHEL8-x86_64.AppImage -p "help read_slang"
+        - name: Upload AppImage Artifact
+          uses: actions/upload-artifact@v4
+          with:
+            name: yosys-AppImage
+            path: yosys-RHEL8-x86_64.AppImage
+            retention-days: 7
