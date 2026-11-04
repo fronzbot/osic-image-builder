@@ -19,7 +19,6 @@ jobs:
           dnf config-manager --set-enabled powertools
           dnf clean all
           dnf makecache
-          # Added gperf, autoconf, gmp-devel, and gmp-static
           dnf install -y --enablerepo=powertools --enablerepo=epel \
             gcc-toolset-13 gcc-toolset-13-gcc-c++ \
             make wget curl tar xz unzip file git patch gawk \
@@ -27,7 +26,7 @@ jobs:
             python3.11 python3.11-devel \
             zlib-devel libffi-devel readline-devel \
             tcl tcl-devel libtommath libtommath-devel \
-            gperf autoconf gmp-devel gmp-static
+            gperf autoconf gmp-devel
 
       - name: Install CMake 3.30
         run: |
@@ -82,7 +81,17 @@ jobs:
           cmake --build build --config Release -j2
           # Install directly into the AppDir
           cmake --install build --prefix "${GITHUB_WORKSPACE}/AppDir/usr" --strip
-
+      
+      - name: Build Static GMP (For Yices2)
+        run: |
+          source /opt/rh/gcc-toolset-13/enable
+          wget -q https://gmplib.org/download/gmp/gmp-6.3.0.tar.xz
+          tar xf gmp-6.3.0.tar.xz
+          cd gmp-6.3.0
+          ./configure --disable-shared --enable-static --prefix=/usr/local
+          make -j2
+          make install
+          
       - name: Build Yices2 (Formal Solver)
         run: |
           source /opt/rh/gcc-toolset-13/enable
