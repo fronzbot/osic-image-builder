@@ -19,7 +19,7 @@ jobs:
           dnf config-manager --set-enabled powertools
           dnf clean all
           dnf makecache
-          # Added gperf and autoconf for Yices2
+          # Added gperf, autoconf, gmp-devel, and gmp-static
           dnf install -y --enablerepo=powertools --enablerepo=epel \
             gcc-toolset-13 gcc-toolset-13-gcc-c++ \
             make wget curl tar xz unzip file git patch gawk \
@@ -27,7 +27,7 @@ jobs:
             python3.11 python3.11-devel \
             zlib-devel libffi-devel readline-devel \
             tcl tcl-devel libtommath libtommath-devel \
-            gperf autoconf
+            gperf autoconf gmp-devel gmp-static
 
       - name: Install CMake 3.30
         run: |
