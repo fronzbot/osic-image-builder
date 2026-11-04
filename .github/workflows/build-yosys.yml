@@ -115,14 +115,16 @@ jobs:
           source /opt/rh/gcc-toolset-13/enable
           export PATH="${GITHUB_WORKSPACE}/AppDir/usr/bin:$PATH"
           
+          # Fix the hardcoded include path by symlinking the system path to our AppDir
+          mkdir -p /usr/share/yosys
+          ln -sfn "${GITHUB_WORKSPACE}/AppDir/usr/share/yosys/include" /usr/share/yosys/include
+          
           git clone https://github.com/YosysHQ/eqy.git
           cd eqy
           
-          # Overrides to force yosys-config to use the local AppDir instead of the host system
-          export CXXFLAGS="-I${GITHUB_WORKSPACE}/AppDir/usr/share/yosys/include"
+          # Force the plugin installation path into the AppDir
           export YOSYS_DATDIR="${GITHUB_WORKSPACE}/AppDir/usr/share/yosys"
           
-          # V=1 forces Make to print the full compiler and linker commands
           make V=1 -j2
           make install PREFIX="${GITHUB_WORKSPACE}/AppDir/usr"
 
