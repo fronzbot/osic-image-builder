@@ -113,11 +113,17 @@ jobs:
       - name: Build EQY
         run: |
           source /opt/rh/gcc-toolset-13/enable
-          # eqy Makefile requires yosys-config to be in the PATH to compile its plugin
           export PATH="${GITHUB_WORKSPACE}/AppDir/usr/bin:$PATH"
+          
           git clone https://github.com/YosysHQ/eqy.git
           cd eqy
-          make -j2
+          
+          # Overrides to force yosys-config to use the local AppDir instead of the host system
+          export CXXFLAGS="-I${GITHUB_WORKSPACE}/AppDir/usr/share/yosys/include"
+          export YOSYS_DATDIR="${GITHUB_WORKSPACE}/AppDir/usr/share/yosys"
+          
+          # V=1 forces Make to print the full compiler and linker commands
+          make V=1 -j2
           make install PREFIX="${GITHUB_WORKSPACE}/AppDir/usr"
 
       - name: Prepare AppDir Structure
