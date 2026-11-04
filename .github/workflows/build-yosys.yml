@@ -88,7 +88,8 @@ jobs:
           wget -q https://gmplib.org/download/gmp/gmp-6.3.0.tar.xz
           tar xf gmp-6.3.0.tar.xz
           cd gmp-6.3.0
-          ./configure --disable-shared --enable-static --prefix=/usr/local
+          # --disable-assembly prevents the CPU detection hang inside the container
+          ./configure --disable-shared --enable-static --prefix=/usr/local --disable-assembly
           make -j2
           make install
           
