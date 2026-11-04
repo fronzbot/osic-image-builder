@@ -81,16 +81,17 @@ jobs:
           cmake --build build --config Release -j2
           # Install directly into the AppDir
           cmake --install build --prefix "${GITHUB_WORKSPACE}/AppDir/usr" --strip
-      
+
       - name: Build Static GMP (For Yices2)
         run: |
           source /opt/rh/gcc-toolset-13/enable
-          wget -q https://gmplib.org/download/gmp/gmp-6.3.0.tar.xz
+          # Try gmplib first, fallback to the main GNU mirror if it fails
+          wget -q --tries=3 --timeout=15 https://gmplib.org/download/gmp/gmp-6.3.0.tar.xz || \
+          wget -q --tries=3 --timeout=15 https://ftp.gnu.org/gnu/gmp/gmp-6.3.0.tar.xz
           tar xf gmp-6.3.0.tar.xz
           cd gmp-6.3.0
-          # --disable-assembly prevents the CPU detection hang inside the container
           ./configure --disable-shared --enable-static --prefix=/usr/local --disable-assembly
-          make -j2
+          make V=1 -j2
           make install
           
       - name: Build Yices2 (Formal Solver)
