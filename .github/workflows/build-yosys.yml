@@ -167,7 +167,7 @@ jobs:
           fi
           ./linuxdeploy-tool/AppRun "${LINUXDEPLOY_ARGS[@]}"
           
-          # Replace default AppRun with a multiplexer script so we can call eqy/sby/yices
+          # Replace default AppRun with a multiplexer using STRICT absolute paths
           cat > AppDir/AppRun <<'EOF'
           #!/bin/bash
           HERE="$(dirname "$(readlink -f "${0}")")"
@@ -178,10 +178,10 @@ jobs:
           case "$TOOL" in
             eqy|sby|yices|yices-smt2)
               shift
-              exec "$TOOL" "$@"
+              exec "${HERE}/usr/bin/$TOOL" "$@"
               ;;
             *)
-              exec yosys "$@"
+              exec "${HERE}/usr/bin/yosys" "$@"
               ;;
           esac
           EOF
@@ -189,7 +189,7 @@ jobs:
           
           export ARCH=x86_64
           ./appimagetool-tool/AppRun AppDir yosys-RHEL8-x86_64.AppImage
-
+          
       - name: Smoke test AppImage
         run: |
           export APPIMAGE_EXTRACT_AND_RUN=1
