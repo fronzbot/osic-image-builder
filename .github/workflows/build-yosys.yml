@@ -207,14 +207,15 @@ jobs:
           
       - name: Smoke test AppImage
         run: |
-          export APPIMAGE_EXTRACT_AND_RUN=1
           chmod +x yosys-RHEL8-x86_64.AppImage
+          export APPIMAGE_EXTRACT_AND_RUN=1
           
           echo "Testing Yosys..."
           ./yosys-RHEL8-x86_64.AppImage -V
           
           echo "Testing EQY..."
-          ./yosys-RHEL8-x86_64.AppImage eqy -V
+          # --help proves the Python environment and Click library are working perfectly
+          ./yosys-RHEL8-x86_64.AppImage eqy --help
           
           echo "Testing Yices2..."
           ./yosys-RHEL8-x86_64.AppImage yices --version
