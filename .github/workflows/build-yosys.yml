@@ -23,7 +23,7 @@ jobs:
             gcc-toolset-13 gcc-toolset-13-gcc-c++ \
             make wget curl tar xz unzip file git patch gawk \
             flex flex-devel m4 pkgconf-pkg-config which \
-            python3.11 python3.11-devel \
+            python3.11 python3.11-devel python3.11-pip \
             zlib-devel libffi-devel readline-devel \
             tcl tcl-devel libtommath libtommath-devel \
             gperf autoconf gmp-devel
@@ -153,6 +153,9 @@ jobs:
           mv squashfs-root linuxdeploy-tool
           ./appimagetool-x86_64.AppImage --appimage-extract
           mv squashfs-root appimagetool-tool
+
+          # Bundle pure-Python dependencies directly into the AppImage
+          python3.11 -m pip install --target="AppDir/usr/share/python-libs" click
           
           LINUXDEPLOY_ARGS=(
             --appdir AppDir
