@@ -115,16 +115,19 @@ jobs:
           source /opt/rh/gcc-toolset-13/enable
           export PATH="${GITHUB_WORKSPACE}/AppDir/usr/bin:$PATH"
           
-          # Fix the hardcoded include path by symlinking the system path to our AppDir
           mkdir -p /usr/share/yosys
           ln -sfn "${GITHUB_WORKSPACE}/AppDir/usr/share/yosys/include" /usr/share/yosys/include
           
           git clone https://github.com/YosysHQ/eqy.git
           cd eqy
           
-          # Force the plugin installation path into the AppDir
-          export YOSYS_DATDIR="${GITHUB_WORKSPACE}/AppDir/usr/share/yosys"
+          # Sync EQY commit to the exact date of the Yosys commit to prevent API drift
+          YOSYS_DATE=$(git -C ../yosys log -1 --format=%cI)
+          EQY_COMMIT=$(git rev-list -n 1 --before="$YOSYS_DATE" HEAD)
+          git checkout "$EQY_COMMIT"
+          echo "Synced EQY to commit $EQY_COMMIT from date $YOSYS_DATE"
           
+          export YOSYS_DATDIR="${GITHUB_WORKSPACE}/AppDir/usr/share/yosys"
           make V=1 -j2
           make install PREFIX="${GITHUB_WORKSPACE}/AppDir/usr"
 
