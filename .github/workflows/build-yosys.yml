@@ -154,18 +154,15 @@ jobs:
           ./appimagetool-x86_64.AppImage --appimage-extract
           mv squashfs-root appimagetool-tool
           
-          # 1. Manually extract an older version of Click (7.1.2) that supports RHEL 8's native Python 3.6
-          # By placing it manually, we guarantee it sits exactly where PYTHONPATH expects it.
-          mkdir -p AppDir/usr/share/python-libs
-          wget -qO click.tar.gz https://github.com/pallets/click/archive/refs/tags/7.1.2.tar.gz
-          tar -xzf click.tar.gz
-          mv click-7.1.2/src/click AppDir/usr/share/python-libs/
+          # 1. Download a standalone, fully portable Python 3.11 runtime (compatible with RHEL 8's old glibc)
+          wget -qO embedded-python.tar.gz https://github.com/astral-sh/python-build-standalone/releases/download/20240726/cpython-3.11.9+20240726-x86_64-unknown-linux-gnu-install_only.tar.gz
+          tar -xzf embedded-python.tar.gz
           
-          # 2. Rewrite the shebangs to use the host server's native python3 instead of the container's python3.11
-          sed -i 's|^#!.*|#!/usr/bin/env python3|' AppDir/usr/bin/eqy
-          if [ -f AppDir/usr/bin/sby ]; then
-            sed -i 's|^#!.*|#!/usr/bin/env python3|' AppDir/usr/bin/sby
-          fi
+          # Move the standalone python environment directly into the AppImage payload
+          mv python AppDir/usr/python
+          
+          # 2. Install click directly into the embedded Python environment using its own isolated pip
+          ./AppDir/usr/python/bin/python3 -m pip install click
           
           LINUXDEPLOY_ARGS=(
             --appdir AppDir
@@ -182,16 +179,20 @@ jobs:
           
           rm -f AppDir/AppRun
           
+          # 3. Multiplexer now ignores the host OS completely and forces EQY to use the embedded Python 3.11
           cat > AppDir/AppRun <<'EOF'
           #!/bin/bash
           HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
           export PATH="${HERE}/usr/bin:${PATH}"
           export YOSYS_DATDIR="${HERE}/usr/share/yosys"
-          export PYTHONPATH="${HERE}/usr/share/python-libs:${PYTHONPATH}"
           
           TOOL="$1"
           case "$TOOL" in
-            eqy|sby|yices|yices-smt2)
+            eqy|sby)
+              shift
+              exec "${HERE}/usr/python/bin/python3" "${HERE}/usr/bin/$TOOL" "$@"
+              ;;
+            yices|yices-smt2)
               shift
               exec "${HERE}/usr/bin/$TOOL" "$@"
               ;;
